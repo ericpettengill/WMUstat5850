@@ -1,0 +1,140 @@
+---
+title: 'Homework #3'
+author: "Eric Pettengill"
+output: pdf_document
+---
+
+### 4.7.11. Develop a model to predict whether a give car gets high or low gas mileage based on the AUTO dataset
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ISLR)
+library(caret)
+library(MASS)
+```
+
+
+(a) Create a binary variable, $\texttt{mpg01}$, that contains a 1 if $\texttt{mpg}$ contains a value below its median.
+
+```{r}
+auto_new <- Auto %>% 
+  mutate(mpg01 = if_else(mpg < median(mpg), 1, 0))
+
+auto_new$mpg01 <- as.factor(auto_new$mpg01)
+auto_new$origin <- as.factor(auto_new$origin)
+
+str(auto_new)
+```
+
+
+(b) Explore the data graphically in order to investigate the association between $\texttt{mpg01}$ and other features. Which of the other features seem most likely to be useful in predicting $\texttt{mpg01}$?
+
+```{r fig.width=6, fig.asp=0.618}
+ggplot(auto_new) +
+  geom_point(aes(x = horsepower, y = displacement, color = weight)) +
+  facet_grid(mpg01 ~ cylinders) +
+  theme_bw()
+```
+
+The plot above shows the displacement, horsepower, and weight of each car by the number of cylinders(3,4,5,6,8) and whether the MPG of each is below the median(1) or not(0). As we can see, as displacement, horsepower, weight, and the number of cylinders increase, more cars' MPG fall below the median MPG value(labeled 1 above), most notably for 8 cylinder cars.
+
+(c) Split the data into a training set and test set.
+
+```{r}
+set.seed(1011)
+train <- createDataPartition(auto_new$mpg01,
+                                  p = 0.5,
+                                  list = FALSE)
+
+auto.train <- auto_new[train, ]
+auto.test <- auto_new[-train, ]
+```
+
+
+(d) Perform LDA on the training data in order to predict $\texttt{mpg01}$ using the variables that seemed most associated with $\texttt{mpg01}$ in (b). What is the test error of the model obtained?
+
+```{r}
+lda.auto.fit <- lda(
+  mpg01 ~ cylinders + displacement + horsepower + weight + acceleration, 
+  data = auto.train
+)
+
+lda.auto.pred <- predict(lda.auto.fit, auto.test)
+
+(lda.table <- confusionMatrix(lda.auto.pred$class, auto.test$mpg01)$table)
+(lda.test.error <- (lda.table[1,2]+lda.table[2,1])/sum(lda.table))
+```
+
+
+(e) Perform QDA on the training data in order to predict $\texttt{mpg01}$ using the variables that seemed most associated with $\texttt{mpg01}$ in (b). What is the test error of the model obtained?
+
+```{r}
+qda.auto.fit <- qda(
+  mpg01 ~ cylinders + displacement + horsepower + weight + acceleration, 
+  data = auto.train
+)
+
+qda.auto.pred <- predict(qda.auto.fit, auto.test)
+
+(qda.table <- confusionMatrix(qda.auto.pred$class, auto.test$mpg01)$table)
+(qda.test.error <- (qda.table[1,2]+qda.table[2,1])/sum(qda.table))
+```
+
+
+(f) Perform logistic regression on the training data in order to predict $\texttt{mpg01}$ using the variables that seemed most associated with $\texttt{mpg01}$ in (b). What is the test error of the model obtained?
+
+```{r}
+logistic.auto.fit <- glm(
+  mpg01 ~ cylinders + displacement + horsepower + weight + acceleration, 
+  data = auto.train,
+  family = binomial
+)
+
+logistic.auto.pred <- predict(logistic.auto.fit, auto.test, type = "response")
+logistic.auto.pred <- as.factor(if_else(logistic.auto.pred > 0.5, 1, 0))
+
+(logistic.table <- confusionMatrix(logistic.auto.pred, auto.test$mpg01)$table)
+(logistic.test.error <- (logistic.table[1,2] + logistic.table[2,1])/sum(logistic.table))
+```
+
+
+(g) Perform KNN on the training data, with several values of K, in order to predict $\texttt{mpg01}$. Use only the variables that seemed most associated with $\texttt{mpg01}$ in (b). What test errors do you obtain? Which value of K seems to perform the best on this data set?
+
+```{r}
+set.seed(1011)
+x <- dplyr::select(auto_new, cylinders, displacement, horsepower, weight, acceleration)
+y <- auto_new$mpg01
+
+xtrain <- x[train, ]
+xtest <- x[-train, ]
+ytrain <- y[train] 
+ytest <- y[-train]
+
+knn.k5.pred <- class::knn(xtrain, xtest, ytrain, k = 5)
+knn.k5.tbl <- table(knn.k5.pred, ytest)
+knn.k5.test.error <- (knn.k5.tbl[1,2] + knn.k5.tbl[2,1])/sum(knn.k5.tbl)
+
+knn.k10.pred <- class::knn(xtrain, xtest, ytrain, k = 10)
+knn.k10.tbl <- table(knn.k10.pred, ytest)
+knn.k10.test.error <- (knn.k10.tbl[1,2] + knn.k10.tbl[2,1])/sum(knn.k10.tbl)
+
+knn.k20.pred <- class::knn(xtrain, xtest, ytrain, k = 20)
+knn.k20.tbl <- table(knn.k20.pred, ytest)
+knn.k20.test.error <- (knn.k20.tbl[1,2] + knn.k20.tbl[2,1])/sum(knn.k20.tbl)
+
+knn.k50.pred <- class::knn(xtrain, xtest, ytrain, k = 50)
+knn.k50.tbl <- table(knn.k50.pred, ytest)
+knn.k50.test.error <- (knn.k50.tbl[1,2] + knn.k50.tbl[2,1])/sum(knn.k50.tbl)
+
+knn.k100.pred <- class::knn(xtrain, xtest, ytrain, k = 100)
+knn.k100.tbl <- table(knn.k100.pred, ytest)
+knn.k100.test.error <- (knn.k100.tbl[1,2] + knn.k100.tbl[2,1])/sum(knn.k100.tbl)
+
+rbind(knn.k5.test.error, 
+      knn.k10.test.error, 
+      knn.k20.test.error, 
+      knn.k50.test.error,
+      knn.k100.test.error)
+```
+
+The larger the value of K, the lower the test error. This may be prone to overfitting, however.

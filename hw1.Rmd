@@ -1,0 +1,94 @@
+---
+title: 'Homework #1'
+author: "Eric Pettengill"
+output: pdf_document
+---
+
+### 2.4.7 (a)-(d)
+
+(a) Compute the Euclidian distance between each observation and test point $X_1=X_2=X_3=0$.
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+
+x <- data.frame(x1 = c(0,2,0,0,-1,1),
+                x2 = c(3,0,1,1,0,1),
+                x3 = c(0,0,3,2,1,1),
+                y = c('red', 'red', 'red', 'green', 'green', 'red'))
+
+x %>% mutate(distance = sqrt(x1^2 + x2^2 +x3^2))
+```
+
+(b) What is our prediction with $K=1$? Why?
+
+Since the minimum distance occurs at the $5th$ observation with a value of 1.414214 our prediction for $K=1$ is green.
+
+(c) What is our prediction with $K=3$? Why?
+
+We take the three points in our test data closest the our test point of $X_1=X_2=X_3=0$ and observe that red occurs twice and green once, so our prediction would be green.
+
+(d) If the Bayes decision boundary in this problem is highly non-linear, then would we expect the best value for $K$ to be large or small? Why?
+
+We would expect the best value for $K$ be smaller since the larger the value for $K$, the decision boundary becomes more linear.
+
+### 2.4.9 (a)-(f)
+
+```{r}
+auto <- read.csv("Auto.csv", na.strings = "?")
+auto <- na.omit(auto)
+auto$horsepower <- as.numeric(auto$horsepower)
+auto$weight <- as.numeric(auto$weight)
+auto$year <- as.numeric(auto$year)
+auto$cylinders <- as.factor(auto$cylinders)
+auto$origin <- as.factor(auto$origin)
+```
+
+(a) Which of the variables are quantitative and qualitative?
+
+Quantitative: MPG, DISPLACEMENT, HORSEPOWER, WEIGHT, ACCELERATION, YEAR
+
+Qualitative:  CYLINDERS, ORIGIN, NAME
+
+(b) What is the range of each quantitative predictor?
+
+```{r}
+autonew <- auto %>% select_if(is.numeric)
+map(autonew, range)
+```
+
+(c) What is the mean and standard deviation of each quantitative variable?
+
+```{r message=FALSE, warning=FALSE}
+map_dbl(autonew, mean)
+map_dbl(autonew, sd)
+```
+
+(d) Remove the 10th to 85th ovservations. What is the range, mean, and standard deviation of the remaining data?
+
+```{r}
+autosubset <- autonew[-c(10:85), ]
+map(autosubset, range)
+map_dbl(autosubset, mean)
+map_dbl(autosubset, sd)
+```
+
+(e) Using the full dataset, investigate the predictors graphically.
+
+```{r fig.width=6, fig.asp=0.618}
+ggplot(auto) +
+  geom_point(aes(x = displacement, y = mpg, color = cylinders)) 
+```
+
+```{r fig.width=6, fig.asp=0.618}
+ggplot(auto) +
+  geom_point(aes(x = horsepower, y = mpg, color = origin))
+```
+
+```{r fig.width=6, fig.asp=0.618}
+ggplot(auto) + geom_point(aes(x= weight, y=mpg, color=cylinders))
+```
+
+
+(f) Suppose we wish to predict MPG. Do your plots suggest that any of the variables might be useful in predicting MPG.
+
+Yes, there seems to be a relationship between the miles per gallon a car gets based on its displacement, horsepower, weight, and the number of cylinders. More precisely, the less a car weighs, the lower its displacement and horsepower, and the lower number of cylinders it has, the more miles per gallon the car will get.

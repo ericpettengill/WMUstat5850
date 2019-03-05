@@ -1,0 +1,223 @@
+---
+title: 'Homework #5'
+author: "Eric Pettengill"
+output: pdf_document
+---
+
+### We will predict the number of applications received using the other variables in the \texttt{College} data set
+
+Tables for the test MSE, model parameters used($\lambda$, $M$), and coefficients of the final model are printed in part (g). 
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(fig.asp = .618)
+```
+
+```{r PACKAGES/DATA, message=FALSE, warning=FALSE, comment=TRUE}
+library(ISLR)
+library(tidyverse)
+library(glmnet)
+library(caret)
+library(pls)
+
+college <- College %>% 
+  filter(PhD <= 100) %>% 
+  filter(Grad.Rate <= 100)
+```
+
+#### (a) Split the data into a training and test set
+
+```{r DATA SPLIT}
+set.seed(1110)
+trn <- createDataPartition(college$Apps,
+                           p = 0.5,
+                           list = FALSE)
+
+x <- model.matrix(Apps ~ ., data = college)[ ,-1]
+y <- college$Apps
+
+college.train <- college[trn, ]
+college.test <- college[-trn, ]
+
+x.train <- x[trn, ]
+x.test <- x[-trn, ]
+y.train <- y[trn]
+y.test <- y[-trn]
+```
+
+#### (b) Fit a linear model using least squares on the training set, and report the test error.
+
+```{r LM}
+# Linear model
+lm.fit <- lm(Apps ~ ., data = college.train)
+
+# predictions
+lm.pred <- predict(lm.fit, college.test)
+
+# MSE
+lm.mse <- mean((lm.pred - college.test$Apps)^2)
+
+# Final model coefficients on all data
+lm.coef <- round(coef(lm(Apps ~ ., data = college)), 2)
+```
+
+\pagebreak
+
+#### (c) Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the test error.
+
+```{r RIDGE, collapse=TRUE}
+set.seed(1110)
+
+grid <- 10^seq(10, -2, length = 100)
+
+# Ridge reg. on training
+ridge.fit <- glmnet(x.train, y.train, alpha = 0, lambda = grid)
+
+# CV for lambda
+ridge.fit.cv <- cv.glmnet(x.train, y.train, alpha = 0, nfolds = 10)
+
+# lambda value
+ridge.lambda <- ridge.fit.cv$lambda.min
+
+# predictions
+ridge.pred <- predict(ridge.fit, s = ridge.lambda, newx = x.test)
+
+# MSE
+ridge.mse <- mean((ridge.pred - y.test)^2)
+
+# Final model coefficients on all data
+ridge.coef <- round(coef(glmnet(x, y, alpha = 0, lambda = ridge.lambda)),2)
+```
+
+\pagebreak
+
+#### (d) Fit a lasso model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained, along with the number of non-zero coefficient estimates.
+
+```{r LASSO, collapse=TRUE}
+set.seed(1110)
+
+# Lasso reg. on training
+lasso.fit <- glmnet(x.train, y.train, alpha = 1, lambda = grid)
+
+# CV for lambda
+lasso.fit.cv <- cv.glmnet(x.train, y.train, alpha = 1, nfolds = 10)
+
+# lambda value
+lasso.lambda <- lasso.fit.cv$lambda.min
+
+# predictions
+lasso.pred <- predict(lasso.fit, s = lasso.lambda, newx = x.test)
+
+# MSE
+lasso.mse <- mean((lasso.pred - y.test)^2)
+
+# Final model coefficients on all data
+lasso.coef <- round(coef(glmnet(x, y, alpha = 1, lambda = lasso.lambda)),2)
+```
+
+\pagebreak
+
+#### (e) Fit a PCR model on the training set, with $M$ chosen by cross-validation. Report the test error obtained, along with the value of $M$ selected by cross-validation.
+
+Below is the validation plot for principal components regression, as we can see the MSE for the cross validated value for $M$, the number of PC's, starts to level off around 10. The `summary(pcr.fit)` function chooses this number of PC's for us.
+
+```{r PCR, collapse=TRUE}
+set.seed(1110)
+
+# PCR on training
+pcr.fit <- pcr(Apps ~ ., data = college.train, scale = TRUE, validation = "CV")
+validationplot(pcr.fit)
+
+# predictions
+pcr.pred <- predict(pcr.fit, x.test, ncomp = 10)
+
+# MSE
+pcr.mse <- mean((pcr.pred - y.test)^2)
+
+# Final model on all data
+pcr.final <- pcr(Apps ~ ., data = college, scale = TRUE, ncomp = 10)
+pcr.coef <- pcr.final$coefficients
+```
+
+\pagebreak
+
+#### (f) Fit an elastic net model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained, along with the number of non-zero coefficient estimates.
+
+```{r ELASTIC NET, collapse=TRUE}
+set.seed(1110)
+
+## Elastic net on training
+elnet.fit <- glmnet(x.train, y.train, alpha = 0.5, lambda = grid)
+
+# CV for lambda
+elnet.fit.cv <- cv.glmnet(x.train, y.train, alpha = 0.5, nfolds = 10)
+
+# lambda value
+elnet.lambda <- elnet.fit.cv$lambda.min
+
+# predictions
+elnet.pred <- predict(elnet.fit, s = elnet.lambda, newx = x.test)
+
+# MSE
+elnet.mse <- mean((elnet.pred - y.test)^2)
+
+# Final model coefficients on all data
+elnet.coef <- round(coef(glmnet(x, y, alpha = 0.5, lambda = elnet.lambda)),2)
+```
+
+\pagebreak
+
+#### (g) Comment on the results obtained. How accurately can we predict the number of college applications received? Is there much diference among the test errors resulting from these five approaches?
+
+Table 1 contains the test MSE for each model used above, as well as the parameter used in each model, chosen by cross validation ($\lambda$ for Ridge, lasso, and elastic net and $M$ for PCR). Table 2 contains the coefficients for all models considered.
+
+As we can see Ridge regression gives the lowest test MSE followed by Lasso, Elastic net, Linear model, and PCR is surprisingly much larger than the others. Plots of the MSE as a function of $\lambda$ for the Ridge, Lasso, and Elastic net models is shown. 
+
+The number of zero coefficients by $\lambda$ for the cross validated Ridge, Lasso, and Elastic net models are also shown below. This is not the same as the coefficients in table 2. Notice that as the value of $\lambda$ increases the number of coefficients that goes to zero decreases for the Lasso and Elastic net, with the Elastic net consistently having more zero coefficients. The Ridge model however shrunk almost all coefficients in the cross validation step. From the final model coefficients in table 2, we can see that the Lasso model is the only one to shrink a coefficient to zero, having 3, while the Ridge and Elastic Net have some coefficients very close to zero. 
+
+```{r MSE TABLE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
+mse.table <- data.frame(Model = c("LM", "Ridge", "Lasso", "Elastic Net", "PCR"),
+                        Parameter = c(NA, ridge.lambda, lasso.lambda, elnet.lambda, 10),
+                        MSE = c(lm.mse, ridge.mse, lasso.mse, elnet.mse, pcr.mse))
+
+print(xtable::xtable(mse.table, caption = "Model Parameters/MSE"), type = "latex", comment = FALSE)
+```
+
+```{r COEFFICIENTS TABLE, echo=FALSE, message=FALSE, warning=FALSE, results="asis"}
+pcr.coef <- c(-219.623359,1313.671622,1182.511878,191.856674,137.721972,1054.140180,-192.485393,198.345277,342.425263,9.198944,-71.742784,-112.896648,-128.411459,-23.216473,-232.063891,341.032325,220.624062)
+model.coef <- cbind(lm.coef, ridge.coef, lasso.coef, elnet.coef, round(pcr.coef,2))
+colnames(model.coef) <- c("LM", "Ridge", "Lasso", "Elastic Net", "PCR")
+
+
+print(xtable::xtable(as.data.frame(as.matrix(model.coef)), caption = "Model Coefficients"), type = "latex", comment = FALSE)
+```
+
+
+```{r CV lambda plots, echo=FALSE}
+library(broom)
+library(patchwork)
+ridge.tidy.cv <- tidy(ridge.fit.cv) %>% add_column(model = as.factor("ridge"))
+ridge.glance.cv <- glance(ridge.fit.cv)
+lasso.tidy.cv <- tidy(lasso.fit.cv) %>% add_column(model = as.factor("lasso"))
+lasso.glance.cv <- glance(lasso.fit.cv)
+elnet.tidy.cv <- tidy(elnet.fit.cv) %>% add_column(model = as.factor("elnet"))
+elnet.glance.cv <- glance(elnet.fit.cv)
+
+model.df <- rbind(ridge.tidy.cv, lasso.tidy.cv, elnet.tidy.cv)
+
+# MSE plot with min lambda and SE
+p1 <- ggplot(model.df, aes(lambda, estimate)) +
+  geom_line(aes(color = model)) +
+  scale_x_log10() +
+  ggtitle("MSE by Lambda") +
+  labs(x = "Lambda", y = "MSE")
+  
+# plot of number of zeros for each choice of lambda
+p2 <- ggplot(model.df, aes(lambda, nzero)) + 
+  geom_line(aes(color = model)) + 
+  scale_x_log10() +
+  ggtitle("Number of Zero Coefficients by Lambda") +
+  labs(x = "Lambda", y = "# zero coef.")
+
+p1 + p2 + plot_layout(ncol = 1)
+```
+

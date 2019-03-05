@@ -1,0 +1,156 @@
+---
+title: 'Homework #2'
+author: "Eric Pettengill"
+output: pdf_document
+---
+
+### 3.7.10 This problem uses the $\texttt{Carseats}$ data set in the ISLR package.
+
+(a) Fit a multiple regression model to predict $\texttt{Sales}$ using $\texttt{Price}$, $\texttt{Urban}$, and $\texttt{US}$.
+    
+    
+```{r}
+library(ISLR)
+sales.fit <- lm(Sales ~ Price + Urban + US, data = Carseats)
+```
+    
+    
+(b) Provide an interpretation of each coefficient in the model.
+    
+    
+```{r}
+sales.fit$coefficients
+```
+
+
+For every dollar increase in price of the carseat, sales with go down by 0.0545 dollars. Urban = YES corresponds to 0.0219 dollars of sales lower than Urban = NO. US = YES indicates US made carseats have a Sales value of 1.2 dollars higher than non-US made carseats.
+
+
+(c) Write out the model in equation form.
+$$Sales = 13.04 - 0.054 \cdot Price - 0.0219 \cdot Urban + 1.201 \cdot US$$
+$$Urban = \left\{
+  \begin{array}{lr}
+    1 &    yes \\
+    0 &    no
+  \end{array}
+\right.$$
+
+$$US = \left\{
+  \begin{array}{lr}
+    1 &    yes \\
+    0 &    no
+  \end{array}
+\right.$$
+
+    
+(d) For which of the predictors can you reject the null hypothesis $H_0:$ $\beta_j=0$?
+
+
+```{r}
+summary(sales.fit)
+```
+
+
+Since the F-stat for the model is significant with p-value: < 2.2e-16 we can see that Price(p-value < 2e-16) and US(p-value = 4.86e-06) both reject the null hypothesis $H_0:$ $\beta_j=0$, that is, they are significant predictors of Sales for this model.
+
+
+(e) Fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.
+
+
+```{r}
+sales.fit.update <- lm(Sales ~ Price + US, data = Carseats)
+summary(sales.fit.update)
+```
+
+Price(p < 2e-16) and US(p = 4.71e-06) are again significant.
+    
+    
+(f) How well do the models in (a) and (e) fit the data?
+
+We can see below that testing $H_0: \beta_{urban} = 0$ fails to reject with p = 0.9357. Also, the model with only PRICE and US has a higher adjusted R-squared than the model with PRICE, URBAN, and US, as well as a slightly smaller RSE. So the simpler model provides a better fit.
+
+```{r}
+anova(sales.fit, sales.fit.update)
+```
+    
+    
+(g) Using the model from (e), obtain 95% confidence intervals for the coefficients.
+
+
+```{r}
+confint(sales.fit.update)
+```
+
+\pagebreak
+    
+### 3.7.13 Make sure to $\texttt{set.seed(1)}$.
+
+(a) Using the $\texttt{rnorm}$ function, create a vector, $\texttt{x}$, containing 100 observations drawn from a $N(0,1)$.
+
+(b) Using the $\texttt{rnorm}$ function, create a vector, $\texttt{eps}$, containing 100 observations drawn from a $N(0,0.25)$
+
+```{r}
+set.seed(1)
+x <- rnorm(100, mean = 0, sd = 1)
+eps <- rnorm(100, mean = 0, sd = .5)
+```
+
+    
+(c) Using $\texttt{y}$ and $\texttt{eps}$, generate a vector $Y$ according to the model $Y = -1 + 0.5X + \epsilon$. What is the length of vector $Y$? What are the values of $\beta_0$ and $\beta_1$?
+
+
+```{r}
+y <- -1 + 0.5*x + eps
+
+length(y)
+```
+
+$$\beta_0 = -1$$
+$$\beta_1 = 0.5$$
+
+
+(d) Create a scatterplot displaying the relationship between $\texttt{x}$ and $\texttt{y}$. Comment.
+
+
+```{r fig.width=6, fig.asp=0.618}
+plot(x,y)
+```
+
+We can see that $\texttt{x}$ and $\texttt{y}$ are linear in their relationship.
+
+\pagebreak
+    
+(e) Fit a least squares linear model to predict $y$ using $x$. How do $\hat{\beta_0}$ and $\hat{\beta_1}$ compare to $\beta_0$ and $\beta_1$?
+
+
+As we can see by the summary printed below $\hat{\beta_0} \approx \beta_0 = -1$ and $\hat{\beta_1} \approx \beta_1 = 0.5$.
+
+```{r}
+mod <- lm(y ~ x)
+summary(mod)
+```
+    
+    
+(f) Display the least squares line on the scatterplot obtained in (d). Draw the population regression line on the plot, in a different color. Create a legend.
+
+```{r fig.width=6, fig.asp=0.618}
+plot(x,y)
+abline(a = -1, b = 0.5, col = "red")
+abline(mod, col = "blue")
+legend("topleft", legend = c("Theoretical", "Actual"), col = c("red", "blue"), lty = 1:2)
+```
+
+\pagebreak    
+    
+(g) Fit a polynomial regression model that predicts $y$ using $x$ and $x^2$. Is there evidence that the quadratic term improves the model fit? Explain.
+
+```{r}
+mod.quad <- lm(y ~ x + I(x^2))
+summary(mod.quad)
+```
+
+```{r}
+anova(mod, mod.quad)
+```
+
+No, there is not evidence that the quadratic term improves the model. Since p = 0.1638 for $H_0: \beta_{x^2} = 0$, we fail to reject $H_0$.

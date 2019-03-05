@@ -1,0 +1,101 @@
+---
+title: 'Homework #4'
+author: "Eric Pettengill"
+output: pdf_document
+---
+
+### Using the \texttt{Default} dataset do the following.
+
+(a) Fit a logistic regression model that uses \texttt{income} and \texttt{balance} to predict \texttt{default}
+
+```{r message=FALSE, warning=FALSE}
+library(ISLR)
+library(caret)
+
+glmfit <- train(default ~ income + balance, 
+             data = Default, 
+             method = "glm",
+             family = "binomial")
+```
+
+
+(b) Estimate the test error using 5-fold cross validation.
+
+```{r}
+set.seed(1018)
+
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 5)
+
+glmfit <- train(default ~ income + balance, 
+             data = Default, 
+             method = "glm",
+             family = "binomial",
+             trControl = fitControl)
+
+glmfit$resample[,c(3,1)]
+
+## test error
+1-mean(glmfit$resample[,1])
+```
+
+
+(c) Add \texttt{student} to the model and estimate the test error using 5-fold cross validation. Comment.
+
+```{r}
+set.seed(1018)
+
+glmfit <- train(default ~ income + balance + student, 
+             data = Default, 
+             method = "glm",
+             family = "binomial",
+             trControl = fitControl)
+
+glmfit$resample[,c(3,1)]
+
+## test error
+1-mean(glmfit$resample[,1])
+```
+
+
+The model in (b) performs slightly better than the model in (c)
+
+### 5.4 #6
+
+(a) Determine the estimated standard errors for the coefficients(\texttt{income} and \texttt{balance}) of the model fit in part (a) above.
+
+```{r}
+glmfit <- glm(default ~ income + balance, data = Default, family = "binomial")
+
+summary(glmfit)$coefficients[-1,2]
+```
+
+
+(b) Write a function, \texttt{boot.fn}, to use in the \texttt{boot()} function to estimate the standard errors.
+
+```{r}
+boot.fn <- function(data, index) {
+  coef(glm(default ~ income + balance, data = Default, family = "binomial", subset = index))[c(2,3)]
+}
+```
+
+
+(c) Use the \texttt{boot()} function to estimate the standard errors of the model in (a).
+
+```{r}
+set.seed(1018)
+
+boot.obj <- boot::boot(Default, boot.fn, R = 1000)
+
+apply(boot.obj$t, 2, sd)
+```
+
+
+(d) Compare the estimates to the true values.
+
+```{r}
+data.frame(Actual = summary(glmfit)$coefficients[-1,2],
+           Bootstrap = apply(boot.obj$t, 2, sd))
+```
+
+The bootstrap estimate for \texttt{income} is slightly lower than the actual value given in the \texttt{glm} output while the bootstrap estimate for \texttt{balance} in slightly higher than the actual value.
